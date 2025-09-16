@@ -1,0 +1,30 @@
+name: main
+
+on:
+  push:
+    branch: main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - uses: engineerd/setup-kind@v0.6.2
+        with:
+          version: "v0.24.0"
+          skipClusterCreation: true
+
+      - name: Install vagrant/libvirt from org action
+        uses: sudoblockio-new/sb-actions/vagrant-libvirt-install@main
+
+      - name: Run tests
+        run: pytest tests

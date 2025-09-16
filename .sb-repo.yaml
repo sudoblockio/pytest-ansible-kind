@@ -1,0 +1,5 @@
+name: pytest-ansible-kind
+description: pytest plugin for testing ansible roles against k8s with kind
+
+github:
+  visibility: public
