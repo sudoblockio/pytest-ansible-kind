@@ -6,8 +6,8 @@ import tempfile
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, Literal
 
-from pytest_sb_ansible.ansible import run_playbook
-from pytest_sb_ansible.util import require_bins
+from pytest_ansible_kind.ansible import run_playbook
+from pytest_ansible_kind.util import require_bins
 
 DEFAULT_KIND_NAME = "test-kind"
 

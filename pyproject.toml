@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.entry-points.pytest11]
-sb-ansible-kind = "pytest_sb_ansible.kind"
+sb-ansible-kind = "pytest_ansible_kind.kind"
 
 [build-system]
 requires = ["setuptools>=68"]
