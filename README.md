@@ -1,6 +1,18 @@
 # pytest-ansible-kind
 
-Pytest plugins for running various ansible tests against kind k8s cluster managing setup and teardown and yielding a kubeconfig to build a client and make assertions with after the playbook ran.
+<!---badges-start--->
+[![Tests](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/main.yaml/badge.svg?branch=main)](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/main.yaml)
+[![Copybara](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/copy.yaml/badge.svg?branch=main)](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/copy.yaml)
+![GitHub Release Date](https://img.shields.io/github/release-date/sudoblockio-new/pytest-ansible-kind)
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/sudoblockio-new/pytest-ansible-kind)
+
+![Copy job](https://img.shields.io/github/actions/workflow/status/sudoblockio-new/pytest-ansible-kind/copy.yaml?branch=main&job=copy)
+
+<!---badges-end--->
+
+Pytest plugins for running various ansible tests against kind k8s cluster managing setup and teardown and yielding a kubeconfig to build a client and make assertions with after the
+playbook ran.
+
 
 ## K8s / Kind
 

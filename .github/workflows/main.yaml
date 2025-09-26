@@ -23,8 +23,5 @@ jobs:
           version: "v0.24.0"
           skipClusterCreation: true
 
-      - name: Install vagrant/libvirt from org action
-        uses: sudoblockio-new/sb-actions/vagrant-libvirt-install@main
-
       - name: Run tests
         run: pytest tests

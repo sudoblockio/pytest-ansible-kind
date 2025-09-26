@@ -1,15 +1,21 @@
 import pytest
 
 import os
+import shutil
 import subprocess
 import tempfile
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, Literal
 
 from pytest_ansible_kind.ansible import run_playbook
-from pytest_ansible_kind.util import require_bins
 
 DEFAULT_KIND_NAME = "test-kind"
+
+
+def require_bins(*bins: str) -> None:
+    missing = [b for b in bins if shutil.which(b) is None]
+    if missing:
+        raise RuntimeError("Missing required binaries: " + ", ".join(missing))
 
 
 def pytest_addoption(parser):
