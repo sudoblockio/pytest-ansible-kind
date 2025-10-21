@@ -13,6 +13,7 @@
 Pytest plugins for running various ansible tests against kind k8s cluster managing setup and teardown and yielding a kubeconfig to build a client and make assertions with after the
 playbook ran.
 
+TODO: Document ini opts and behaviour
 
 ## K8s / Kind
 
