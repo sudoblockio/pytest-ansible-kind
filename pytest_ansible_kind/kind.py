@@ -7,7 +7,7 @@ import tempfile
 from contextlib import contextmanager
 from typing import Any, Callable, Generator
 
-from pytest_ansible_kind.ansible import run_playbook
+from pytest_ansible_kind.ansible import run_playbook, extract_play_hosts
 
 DEFAULT_KIND_NAME = "test-kind"
 
@@ -55,8 +55,7 @@ def _render_kind_config(workers: int, image: str | None) -> str:
     ]
     for _ in range(max(0, workers)):
         lines.append("  - role: worker")
-    if image:
-        pass
+    # NOTE: image can be applied via CLI; if you want per-node images, extend here.
     return "\n".join(lines) + "\n"
 
 
@@ -90,7 +89,7 @@ def _ensure_kind(name: str, wait: str, workers: int, image: str | None) -> None:
 
 def _kubeconfig_path(name: str) -> str:
     p = os.path.join(tempfile.gettempdir(), f"{name}-kubeconfig")
-    with open(p, "w") as fh:
+    with open(p, "w", encoding="utf-8") as fh:
         fh.write(_kind_out(["get", "kubeconfig", f"--name={name}"]))
     return p
 
@@ -112,7 +111,9 @@ def kind_runner(
     wait: str = "120s",
     workers: int = 0,
     image: str | None = None,
-) -> Generator[Callable[[Any], str], None, None]:
+) -> Generator[
+    Callable[[str, str, dict[str, Any] | None, str | None], str], None, None
+]:
     # Minimal input validation
     assert isinstance(shutdown, bool), "k8s_shutdown must resolve to a boolean"
     assert isinstance(workers, int) and workers >= 0, (
@@ -132,14 +133,47 @@ def kind_runner(
         playbook: str,
         project_dir: str,
         extravars: dict[str, Any] | None = None,
+        inventory_file: str | None = None,  # NEW
     ) -> str:
-        run_playbook(
-            playbook=playbook,
-            project_dir=project_dir,
-            extravars=extravars or {},
-            envvars={"KUBECONFIG": kubeconfig},
-        )
-        return kubeconfig
+        """
+        Inventory override rules:
+        - if inventory_file is provided, pass-through (exact override).
+        - else, adopt playbook hosts and map each alias to local execution
+          by generating a temporary INI inventory with ansible_connection=local.
+        """
+        temp_inv_path: str | None = None
+        try:
+            if inventory_file:
+                inventory_arg = inventory_file
+            else:
+                patterns = extract_play_hosts(playbook)
+                host_aliases = patterns or ["localhost"]
+                # Write a small INI inventory that forces local connection for each alias.
+                # Example:
+                #   some_cluster ansible_connection=local
+                #   localhost    ansible_connection=local
+                with tempfile.NamedTemporaryFile(
+                    "w", delete=False, prefix="kind-inv-", suffix=".ini"
+                ) as tf:
+                    for alias in host_aliases:
+                        tf.write(f"{alias} ansible_connection=local\n")
+                    temp_inv_path = tf.name
+                inventory_arg = temp_inv_path
+
+            run_playbook(
+                playbook=playbook,
+                project_dir=project_dir,
+                inventory=inventory_arg,
+                extravars=extravars or {},
+                envvars={"KUBECONFIG": kubeconfig},
+            )
+            return kubeconfig
+        finally:
+            if temp_inv_path and os.path.exists(temp_inv_path):
+                try:
+                    os.unlink(temp_inv_path)
+                except OSError:
+                    pass  # non-fatal cleanup
 
     try:
         yield _runner

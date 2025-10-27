@@ -10,6 +10,7 @@ dependencies = [
   "pytest",
   "ansible-runner",
   "kubernetes",
+  "pyyaml",
 ]
 
 [project.entry-points.pytest11]

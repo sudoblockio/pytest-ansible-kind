@@ -5,9 +5,7 @@
 [![Copybara](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/copy.yaml/badge.svg?branch=main)](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/copy.yaml)
 ![GitHub Release Date](https://img.shields.io/github/release-date/sudoblockio-new/pytest-ansible-kind)
 ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/sudoblockio-new/pytest-ansible-kind)
-
 ![Copy job](https://img.shields.io/github/actions/workflow/status/sudoblockio-new/pytest-ansible-kind/copy.yaml?branch=main&job=copy)
-
 <!---badges-end--->
 
 Pytest plugins for running various ansible tests against kind k8s cluster managing setup and teardown and yielding a kubeconfig to build a client and make assertions with after the
@@ -15,12 +13,16 @@ playbook ran.
 
 TODO: Document ini opts and behaviour
 
-## K8s / Kind
+### `kind_run`
 
-- `kind_run` params:
-  - `playbook: str` - path to playbook
-  - `project_dir: str` - path to the base of the collections directory
-- Returns a `kubeconfig` string path which can be used for a client to make assertions
+```python
+def kind_run(
+    *,
+    playbook: str,  # path to playbook
+    project_dir: str,  # path to the base of the collections directory
+    inventory_file: str | None = None,  # Optionally supply inventory. Omit for local kind
+) -> str:  # returns kubeconfig path
+```
 
 ### Usage
 
@@ -38,7 +40,8 @@ def collection_path(request):
 
 def test_k8s_run(collection_path, kind_run):
     kubeconfig = kind_run(
-        playbook=os.path.join(collection_path, "tests", "playbook-k8s.yaml"),
+        # When not supplying inventory, assumes localhost for local kind
+        playbook=os.path.join(collection_path, "playbooks", "playbook-k8s.yaml"),
         project_dir=collection_path,
     )
 

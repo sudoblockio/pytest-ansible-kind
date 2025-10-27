@@ -1,6 +1,5 @@
 ---
-- hosts: localhost
-  connection: local
+- hosts: clusters
   gather_facts: false
   roles:
     - my_k8s_role

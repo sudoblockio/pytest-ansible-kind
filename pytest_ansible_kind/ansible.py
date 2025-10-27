@@ -1,6 +1,7 @@
 import os
 from typing import Any, Mapping
 
+import yaml
 from ansible_runner import Runner, RunnerConfig
 
 
@@ -29,3 +30,31 @@ def run_playbook(
 
     if not (status == "successful" and rc == 0):
         raise RuntimeError(f"play failed: status={status}, rc={rc}")
+
+
+def extract_play_hosts(playbook_path: str) -> list[str]:
+    """
+    Minimal parser to extract unique `hosts` patterns from a playbook.
+    Returns an ordered list of unique host patterns (strings). Empty if none.
+    """
+    with open(playbook_path, "r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+
+    plays: list[dict[str, Any]]
+    if isinstance(data, list):
+        plays = [p for p in data if isinstance(p, dict)]
+    elif isinstance(data, dict):
+        plays = [data]
+    else:
+        return []
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for p in plays:
+        h = p.get("hosts")
+        if isinstance(h, str):
+            hv = h.strip()
+            if hv and hv not in seen:
+                seen.add(hv)
+                out.append(hv)
+    return out

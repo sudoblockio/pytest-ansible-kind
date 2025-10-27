@@ -1,0 +1,4 @@
+---
+- hosts: some_cluster
+  roles:
+    - my_k8s_role
