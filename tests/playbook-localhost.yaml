@@ -1,0 +1,7 @@
+# fixture playbook
+---
+- hosts: localhost
+  gather_facts: false
+  connection: local
+  roles:
+    - my_k8s_role

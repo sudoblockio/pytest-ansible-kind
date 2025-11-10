@@ -1,3 +1,4 @@
+# fixture playbook
 ---
 - hosts: some_cluster
   roles:
