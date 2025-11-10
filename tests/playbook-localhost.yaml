@@ -3,5 +3,7 @@
 - hosts: localhost
   gather_facts: false
   connection: local
+  vars:
+    my_var: foo
   roles:
     - my_k8s_role

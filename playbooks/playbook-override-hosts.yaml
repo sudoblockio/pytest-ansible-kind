@@ -1,5 +1,7 @@
 # fixture playbook
 ---
 - hosts: some_cluster
+  vars:
+    my_var: foo
   roles:
     - my_k8s_role

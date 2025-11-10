@@ -4,5 +4,5 @@
   kubernetes.core.k8s:
     api_version: v1
     kind: Namespace
-    name: test-ns
+    name: "{{ my_var }}-ns"
     state: present
