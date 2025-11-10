@@ -12,7 +12,7 @@ def test_override_hosts_inventory_default(kind_run):
     assert "foo-ns" in ns_names
 
 
-def test_with_inventory(collection_path, kind_run):
+def test_with_inventory(kind_run):
     kubeconfig = kind_run(
         "tests/playbook-localhost.yaml",
         inventory_file="tests/inventory.ini",
