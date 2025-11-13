@@ -1,7 +1,7 @@
 [project]
 name = "pytest-ansible-kind"
 version = "0.1.0"
-description = "pytest plugin for testing ansible playbooks against a kind k8s cluster."
+description = "pytest plugin for testing ansible playbooks against a kind clusters."
 
 readme = "README.md"
 license = { file = "LICENSE" }

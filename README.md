@@ -1,55 +1,77 @@
 # pytest-ansible-kind
 
-<!---badges-start--->
-[![Tests](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/main.yaml/badge.svg?branch=main)](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/main.yaml)
-[![Copybara](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/copy.yaml/badge.svg?branch=main)](https://github.com/sudoblockio-new/pytest-ansible-kind/actions/workflows/copy.yaml)
-![GitHub Release Date](https://img.shields.io/github/release-date/sudoblockio-new/pytest-ansible-kind)
-![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/sudoblockio-new/pytest-ansible-kind)
-![Copy job](https://img.shields.io/github/actions/workflow/status/sudoblockio-new/pytest-ansible-kind/copy.yaml?branch=main&job=copy)
-<!---badges-end--->
+Pytest plugin for running Ansible playbooks against a local KIND Kubernetes cluster.
 
-Pytest plugins for running various ansible tests against kind k8s cluster managing setup and teardown and yielding a kubeconfig to build a client and make assertions with after the
-playbook ran.
+The plugin manages KIND cluster lifecycle, provides a kubeconfig to your tests, and can clean up automatically.
 
-TODO: Document ini opts and behaviour
-
-### `kind_run`
+## Quick Example
 
 ```python
-def kind_run(
-    *,
-    playbook: str,  # path to playbook
-    project_dir: str,  # path to the base of the collections directory
-    inventory_file: str | None = None,  # Optionally supply inventory. Omit for local kind
-) -> str:  # returns kubeconfig path
-```
-
-### Usage
-
-```python
-import pytest
-
-import os
+from pytest_ansible_kind import KindRunner
 from kubernetes import client, config
 
-
-@pytest.fixture(scope='function', autouse=True)
-def collection_path(request):
-    return os.path.dirname(os.path.dirname(__file__))
-
-
-def test_k8s_run(collection_path, kind_run):
-    kubeconfig = kind_run(
-        # When not supplying inventory, assumes localhost for local kind
-        playbook=os.path.join(collection_path, "playbooks", "playbook-k8s.yaml"),
-        project_dir=collection_path,
-    )
-
-    assert isinstance(kubeconfig, str)
-    assert os.path.isfile(kubeconfig)
-
+def test_k8s_cluster(kind_runner: KindRunner):
+    kubeconfig = kind_runner("playbooks/playbook.yaml")
     config.load_kube_config(config_file=kubeconfig)
     v1 = client.CoreV1Api()
     ns_names = {ns.metadata.name for ns in v1.list_namespace().items}
     assert "test-ns" in ns_names
+```
+
+## Cluster Name Logic
+
+- If no name is given and no config file: defaults to "kind".
+- If a config file is supplied, the name comes from the YAML (`name:` field).
+- If both are missing, "kind" is assumed.
+- If the YAML is invalid, the test fails.
+- If a cluster with that name exists, it is reused.
+- If `shutdown` is true, it is deleted after tests.
+
+## Pytest Options
+
+pytest.ini:
+
+```ini
+[pytest]
+kind_config = tests/my-cluster.yaml
+kind_shutdown = true
+kind_project_dir = .
+```
+
+CLI overrides:
+
+```
+pytest --kind-config tests/my-cluster.yaml --kind-shutdown
+```
+
+## Fixture
+
+```python
+def kind_runner(
+    playbook: str,
+    project_dir: str | None = None,
+    extravars: dict[str, Any] | None = None,
+    inventory_file: str | None = None,
+    kind_config: str | None = None,
+) -> str:
+    """Runs the Ansible playbook and returns kubeconfig path."""
+```
+
+## Example with Config
+
+```yaml
+# tests/my-cluster.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: my-cluster
+nodes:
+  - role: control-plane
+  - role: worker
+```
+
+```python
+from pytest_ansible_kind import KindRunner
+
+def test_with_config(kind_runner: KindRunner):
+    kubeconfig = kind_runner("tests/playbook.yaml", kind_config="tests/my-cluster.yaml")
 ```

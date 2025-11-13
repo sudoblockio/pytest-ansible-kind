@@ -1,9 +1,11 @@
 import os
 from kubernetes import client, config
 
+from pytest_ansible_kind import KindRunner
 
-def test_override_hosts_inventory_default(kind_run):
-    kubeconfig = kind_run("playbooks/playbook-override-hosts.yaml")
+
+def test_ansible_kind_simple(kind_runner: KindRunner):
+    kubeconfig = kind_runner("playbooks/playbook-override-hosts.yaml")
 
     assert isinstance(kubeconfig, str) and os.path.isfile(kubeconfig)
     config.load_kube_config(config_file=kubeconfig)
@@ -12,9 +14,10 @@ def test_override_hosts_inventory_default(kind_run):
     assert "foo-ns" in ns_names
 
 
-def test_with_inventory(kind_run):
-    kubeconfig = kind_run(
+def test_ansible_kind_with_inventory_and_config(kind_runner: KindRunner):
+    kubeconfig = kind_runner(
         "tests/playbook-localhost.yaml",
+        kind_config="tests/my-cluster.yaml",
         inventory_file="tests/inventory.ini",
         extravars={"my_var": "bar"},
     )
