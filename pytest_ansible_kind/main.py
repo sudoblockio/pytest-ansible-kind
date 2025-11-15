@@ -51,12 +51,21 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 @pytest.fixture(scope="module")
 def kind_runner(request: pytest.FixtureRequest) -> Generator[KindRunner, None, None]:
+    """
+    Module-scoped fixture that provides a KindRunner bound to a resolved
+    project directory and shutdown policy.
+
+    - Project dir is taken from CLI, then ini, otherwise inferred from the
+      location of the test file.
+    - Shutdown defaults to false unless enabled via CLI or ini.
+    - KIND config (if provided via CLI/ini) is resolved relative to rootpath.
+    """
     project_dir, shutdown = resolve_project_dir_and_shutdown(request)
-    default_cfg_path = default_kind_config_from_pytest(request)
+    kind_cfg = default_kind_config_from_pytest(request)
 
     with kind_session(
         project_dir=project_dir,
         shutdown=shutdown,
-        kind_cfg=default_cfg_path,
+        kind_cfg=kind_cfg,
     ) as runner:
         yield runner
