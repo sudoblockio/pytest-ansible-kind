@@ -37,7 +37,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
     group.addoption(
         "--kind-shutdown",
-        action="store_true",
+        action="store_false",
         default=None,
         help="Shutdown KIND cluster when tests complete. Overrides [pytest] kind_shutdown.",
     )
