@@ -5,6 +5,8 @@ from typing import Tuple
 
 import pytest
 
+from .exceptions import ProjectDirError
+
 
 def default_kind_config_from_pytest(request: pytest.FixtureRequest) -> str | None:
     """
@@ -88,5 +90,10 @@ def resolve_project_dir_and_shutdown(
         project_dir = str(Path(proj_ini).resolve())
     else:
         project_dir = infer_project_dir_from_request(request)
+
+    if not Path(project_dir).is_dir():
+        raise ProjectDirError(
+            "Project directory does not exist", project_dir=project_dir
+        )
 
     return project_dir, shutdown

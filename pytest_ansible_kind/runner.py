@@ -10,11 +10,19 @@ from typing import Any, Generator
 import yaml
 import ansible_runner
 
+from .exceptions import (
+    KindBinaryMissingError,
+    KindClusterError,
+    KindConfigError,
+    PlaybookFailedError,
+    PlaybookNotFoundError,
+)
+
 
 def _require_bins(*bins: str) -> None:
     missing = [b for b in bins if shutil.which(b) is None]
     if missing:
-        raise RuntimeError("Missing required binaries: " + ", ".join(missing))
+        raise KindBinaryMissingError(missing)
 
 
 def _run_kind_checked(cmd: list[str]) -> None:
@@ -26,17 +34,13 @@ def _run_kind_checked(cmd: list[str]) -> None:
             text=True,
         )
     except subprocess.CalledProcessError as exc:
-        parts: list[str] = [
-            f"KIND command failed (exit code {exc.returncode})",
-            f"Command: {' '.join(exc.cmd) if isinstance(exc.cmd, (list, tuple)) else exc.cmd}",
-        ]
-        if exc.stdout:
-            parts.append("--- stdout ---")
-            parts.append(exc.stdout.rstrip())
-        if exc.stderr:
-            parts.append("--- stderr ---")
-            parts.append(exc.stderr.rstrip())
-        raise RuntimeError("\n".join(parts)) from exc
+        raise KindClusterError(
+            message="KIND command failed",
+            cmd=exc.cmd,
+            returncode=exc.returncode,
+            stdout=exc.stdout,
+            stderr=exc.stderr,
+        ) from exc
 
 
 def _kind_out(args: list[str]) -> str:
@@ -47,13 +51,12 @@ def _kind_out(args: list[str]) -> str:
             stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as exc:
-        msg = [
-            "KIND command failed while capturing output",
-            f"Command: {' '.join(exc.cmd) if isinstance(exc.cmd, (list, tuple)) else exc.cmd}",
-            "--- output ---",
-            (exc.output or "").rstrip(),
-        ]
-        raise RuntimeError("\n".join(msg)) from exc
+        raise KindClusterError(
+            message="KIND command failed while capturing output",
+            cmd=exc.cmd,
+            returncode=exc.returncode,
+            stdout=exc.output,
+        ) from exc
 
 
 def _cluster_exists(name: str) -> bool:
@@ -72,8 +75,16 @@ def _derive_name_from_cfg(cfg_path: str | None) -> str:
     if cfg_path is None:
         return "kind"
 
-    with open(cfg_path, "r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh)
+    if not os.path.exists(cfg_path):
+        raise KindConfigError("KIND config file not found", config_path=cfg_path)
+
+    try:
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+    except yaml.YAMLError as exc:
+        raise KindConfigError(
+            f"Invalid YAML in KIND config: {exc}", config_path=cfg_path
+        ) from exc
 
     if isinstance(data, dict):
         name = data.get("name")
@@ -104,14 +115,11 @@ def _resolve_playbook_path(project_dir: str, playbook: str) -> str:
     if os.path.isabs(playbook):
         if os.path.exists(playbook):
             return playbook
-        raise FileNotFoundError(f"playbook not found: {playbook!r}")
+        raise PlaybookNotFoundError(playbook)
     candidate = os.path.join(project_dir, playbook)
     if os.path.exists(candidate):
         return candidate
-    raise FileNotFoundError(
-        "playbook not found relative to project_dir. "
-        f"project_dir={project_dir!r}, playbook={playbook!r}, tried={candidate!r}",
-    )
+    raise PlaybookNotFoundError(playbook, project_dir=project_dir, tried=candidate)
 
 
 def _extract_play_hosts(playbook_path: str) -> list[str]:
@@ -235,7 +243,11 @@ class KindRunner:
             status = result.status
             rc = result.rc
             if not (status == "successful" and rc == 0):
-                raise RuntimeError(f"play failed: status={status}, rc={rc}")
+                raise PlaybookFailedError(
+                    playbook=resolved_playbook,
+                    status=status,
+                    rc=rc,
+                )
 
             return kubeconfig
         finally:
