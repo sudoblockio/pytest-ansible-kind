@@ -2,32 +2,58 @@
 
 Pytest plugin for running Ansible playbooks against a local KIND Kubernetes cluster.
 
-The plugin manages KIND cluster lifecycle, provides a kubeconfig to your tests, and can clean up automatically.
-
-## Quick Example
+## Simple Usage
 
 ```python
+from kubernetes import client
 from pytest_ansible_kind import KindRunner
-from kubernetes import client, config
 
-def test_k8s_cluster(kind_runner: KindRunner):
-    kubeconfig = kind_runner("playbooks/playbook.yaml")
-    config.load_kube_config(config_file=kubeconfig)
-    v1 = client.CoreV1Api()
+def test_namespace_created(kind_runner: KindRunner):
+    api_client = kind_runner("playbooks/create-namespace.yaml")
+    v1 = client.CoreV1Api(api_client)
     ns_names = {ns.metadata.name for ns in v1.list_namespace().items}
-    assert "test-ns" in ns_names
+    assert "my-namespace" in ns_names
 ```
 
-## Cluster Name Logic
+## With Custom Cluster Config
 
-- If no name is given and no config file: defaults to "kind".
-- If a config file is supplied, the name comes from the YAML (`name:` field).
-- If both are missing, "kind" is assumed.
-- If the YAML is invalid, the test fails with `KindConfigError`.
-- If a cluster with that name exists, it is reused.
-- If `shutdown` is true, it is deleted after tests.
+```python
+def test_multi_node_cluster(kind_runner: KindRunner):
+    api_client = kind_runner(
+        "playbooks/deploy-app.yaml",
+        kind_config="tests/multi-node.yaml",
+    )
+    v1 = client.CoreV1Api(api_client)
+    nodes = v1.list_node().items
+    assert len(nodes) == 3
+```
 
-## Pytest Options
+```yaml
+# tests/multi-node.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: multi-node
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+```
+
+## With Inventory and Extra Variables
+
+```python
+def test_with_inventory(kind_runner: KindRunner):
+    api_client = kind_runner(
+        "playbooks/configure-cluster.yaml",
+        inventory_file="tests/inventory.ini",
+        extravars={"namespace": "production", "replicas": 3},
+    )
+    apps = client.AppsV1Api(api_client)
+    deploy = apps.read_namespaced_deployment("my-app", "production")
+    assert deploy.spec.replicas == 3
+```
+
+## Configuration
 
 pytest.ini:
 
@@ -38,67 +64,14 @@ kind_shutdown = true
 kind_project_dir = .
 ```
 
-CLI overrides:
+CLI:
 
 ```
 pytest --kind-config tests/my-cluster.yaml --kind-shutdown
 ```
 
-## Fixture
+## Cluster Lifecycle
 
-```python
-def kind_runner(
-    playbook: str,
-    project_dir: str | None = None,
-    extravars: dict[str, Any] | None = None,
-    inventory_file: str | None = None,
-    kind_config: str | None = None,
-) -> str:
-    """Runs the Ansible playbook and returns kubeconfig path."""
-```
-
-## Exception Handling
-
-The plugin provides typed exceptions for better error handling:
-
-```python
-from pytest_ansible_kind import (
-    KindError,              # Base exception for all plugin errors
-    KindBinaryMissingError, # kind, kubectl, or ansible-playbook not found
-    KindClusterError,       # KIND cluster operations failed
-    KindConfigError,        # Invalid or missing KIND config YAML
-    PlaybookNotFoundError,  # Ansible playbook not found
-    PlaybookFailedError,    # Ansible playbook execution failed
-    InventoryNotFoundError, # Inventory file not found
-    ProjectDirError,        # Invalid project directory
-)
-
-def test_with_error_handling(kind_runner: KindRunner):
-    try:
-        kubeconfig = kind_runner("playbooks/deploy.yaml")
-    except PlaybookFailedError as e:
-        print(f"Playbook {e.playbook} failed: status={e.status}, rc={e.rc}")
-        raise
-    except KindClusterError as e:
-        print(f"Cluster error: {e.returncode}")
-        raise
-```
-
-## Example with Config
-
-```yaml
-# tests/my-cluster.yaml
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-name: my-cluster
-nodes:
-  - role: control-plane
-  - role: worker
-```
-
-```python
-from pytest_ansible_kind import KindRunner
-
-def test_with_config(kind_runner: KindRunner):
-    kubeconfig = kind_runner("tests/playbook.yaml", kind_config="tests/my-cluster.yaml")
-```
+- Clusters are reused if they already exist
+- Set `kind_shutdown = true` to delete after tests
+- Cluster name is derived from config YAML or defaults to "kind"

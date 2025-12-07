@@ -9,6 +9,7 @@ from typing import Any, Generator
 
 import yaml
 import ansible_runner
+from kubernetes import client, config
 
 from .exceptions import (
     KindBinaryMissingError,
@@ -168,7 +169,7 @@ class KindRunner:
         extravars: dict[str, Any] | None = None,
         inventory_file: str | None = None,
         kind_config: str | None = None,
-    ) -> str:
+    ) -> client.ApiClient:
         resolved_project_dir = project_dir or self.project_dir
 
         if kind_config is not None:
@@ -249,7 +250,8 @@ class KindRunner:
                     rc=rc,
                 )
 
-            return kubeconfig
+            config.load_kube_config(config_file=kubeconfig)
+            return client.ApiClient()
         finally:
             if temp_inv_path and os.path.exists(temp_inv_path):
                 try:
